@@ -18,6 +18,20 @@ function Swap(props) {
   const [isOpen,setIsOpen]=useState(false);
   const [changeToken, setChangeToken]=useState(1);
   const [prices,setPrices]=useState(null);
+  const [txDetails, setTxDetails] = useState({
+    to:null,
+    data: null,
+    value: null,
+  });
+
+  const {data, sendTransaction}= useSendTransaction({
+    request:{
+      from: address,
+      to: String(txDetails.to),
+      data: String(txDetails.data),
+      value: String(txDetails.value),
+    }
+  })
 
   function handleSlippage(e){
     setSlippage(e.target.value);
@@ -70,13 +84,33 @@ function Swap(props) {
     const res= await axios.get(`http://localhost:3001/tokenPrice`,{
       params: {addressOne: one, addressTwo: two}
     })
-  console.log("response is ",res.data);
+  // console.log("response is ",res.data);
   setPrices(res.data);
   }
+
+  async function fetchDexSwap(){
+    const allowance = await axios.get(`https://api.1inch.dev/swap/v5.2/1/approve/allowance?tokenAddress=${tokenOne.address}&walletAddress=${address}`)
+    if(allowance.data.allowance=== "0"){
+      const approve =  await axios.get(`https://api.1inch.dev/swap/v5.2/1/approve/transaction?tokenAddress=${tokenOne.address}`)
+      
+      setTxDetails(approve.data);
+      console.log("not approved")
+      return
+    
+    } 
+    console.log("make swap");
+  }
+
 
   useEffect(()=>{
     fetchPrices(tokenList[0].address,tokenList[1].address)
   },[])
+
+  useEffect(()=>{
+    if(txDetails.to && isConnected){
+      sendTransaction();
+    }
+  },[txDetails])
 
   const settings=(
     <>
@@ -147,7 +181,7 @@ function Swap(props) {
           <DownOutlined />
         </div>
       </div>
-      <div className='swapButton' disabled={!tokenOneAmount || !isConnected}  >Swap</div>
+      <div className='swapButton' disabled={!tokenOneAmount || !isConnected}  onClick={fetchDexSwap} >Swap</div>
     </div>
     </>
   )
